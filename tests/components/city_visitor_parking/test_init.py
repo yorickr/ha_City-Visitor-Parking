@@ -30,6 +30,7 @@ from custom_components.city_visitor_parking.const import (
     CONF_OPERATING_TIME_OVERRIDES,
     CONF_PERMIT_ID,
     CONF_PROVIDER_ID,
+    CONF_RESOLVED_LOGIN_PARAMS,
     DOMAIN,
 )
 
@@ -78,6 +79,41 @@ async def test_async_setup_entry_network_error(
 
     with pytest.raises(ConfigEntryNotReady):
         await init_module.async_setup_entry(hass, entry)
+
+
+async def test_async_setup_entry_resolved_params_no_duplicate_permit_id(
+    hass: HomeAssistant, monkeypatch: MonkeyPatch
+) -> None:
+    """permit_id in resolved_login_params must not cause a keyword error on restart."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            **_create_entry().data,
+            CONF_RESOLVED_LOGIN_PARAMS: {"permit_id": "permit", "location": "nl"},
+        },
+        unique_id="dvsportal:permit:city",
+        title="City - permit",
+    )
+    entry.add_to_hass(hass)
+
+    provider = AsyncMock()
+    provider.resolved_login_params = {}
+    provider.fetch_all.return_value = ({"id": "permit", "zone_validity": []}, [], [])
+    client = AsyncMock()
+    client.get_provider.return_value = provider
+
+    monkeypatch.setattr(
+        init_module, "async_create_client", AsyncMock(return_value=client)
+    )
+    monkeypatch.setattr(
+        hass.config_entries, "async_forward_entry_setups", AsyncMock(return_value=True)
+    )
+
+    await init_module.async_setup_entry(hass, entry)
+
+    kwargs = provider.login.call_args.kwargs
+    assert kwargs.get("permit_id") == "permit"
+    assert kwargs.get("location") == "nl"
 
 
 async def test_async_setup_entry_provider_error(
