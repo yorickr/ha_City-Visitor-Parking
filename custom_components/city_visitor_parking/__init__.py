@@ -153,15 +153,19 @@ async def async_setup_entry(
     _install_zone_validity_logging(provider)
     login_started = time.perf_counter()
     try:
+        # Passes previously resolved params back to skip redundant API calls
+        # on restart (e.g. location for 2park, permit_media_type_id for dvsportal).
+        # permit_id is popped to avoid a duplicate keyword arg since it is
+        # passed explicitly below (the provider also stores it in resolved params).
+        resolved_params = dict(entry.data.get(CONF_RESOLVED_LOGIN_PARAMS, {}))
+        resolved_params.pop(CONF_PERMIT_ID, None)
         await provider.login(
             username=entry.data[CONF_USERNAME],
             password=entry.data[CONF_PASSWORD],
             # Passes the permit_id so providers can skip auto-detection when
             # multiple config entries share the same provider.
             permit_id=entry.data.get(CONF_PERMIT_ID),
-            # Passes previously resolved params back to skip redundant API calls
-            # on restart (e.g. location for 2park, permit_media_type_id for dvsportal).
-            **entry.data.get(CONF_RESOLVED_LOGIN_PARAMS, {}),
+            **resolved_params,
         )
     except AuthError as err:
         if entry.data.get(CONF_RESOLVED_LOGIN_PARAMS):
