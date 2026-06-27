@@ -96,7 +96,7 @@ async def test_async_setup_entry_resolved_params_no_duplicate_permit_id(
     )
     entry.add_to_hass(hass)
     entry.mock_state(hass, config_entries.ConfigEntryState.SETUP_IN_PROGRESS)
- 
+
     provider = AsyncMock()
     provider.resolved_login_params = {}
     provider.fetch_all.return_value = ({"id": "permit", "zone_validity": []}, [], [])
